@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-// Lexer defines an interface for lexycal scanners.
+// Lexer defines an interface for lexical scanners.
 //
 // We don't have a real lexer implementation in this package, only a dummy one
 // in the tests.
@@ -65,7 +65,8 @@ func (s *Stack) Peek(index int) Token {
 	panic("Peek received negative index")
 }
 
-// Expect consumes a token and panics if it is not of the expected types.
+// Expect consumes a token if matches one of the expected types. Otherwise
+// it panics.
 func (s *Stack) Expect(expected ...TokenType) Token {
 	t := s.Pop()
 	switch len(expected) {

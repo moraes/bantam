@@ -2,6 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/*
+bantam is a tiny little Go package to demonstrate the "Top Down Operator
+Precedence" algorithm created by Vaughan Pratt. For a full explanation, see
+this blog post:
+
+	http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
+
+This is a port of munificent's bantam:
+
+	https://github.com/munificent/bantam
+*/
 package bantam
 
 import (
@@ -19,7 +30,7 @@ type PrefixParser interface {
 	Parse(*Parser, Token) Node
 }
 
-// InfixParser is one of the two parselet interfaces used by the Pratt parser.
+// InfixParser is one of the two interfaces used by the Pratt parser.
 // An InfixParser is associated with a token that appears in the middle of the
 // expression it parses. Its Parse() method will be called after the left-hand
 // side has been parsed, and it in turn is responsible for parsing everything
@@ -32,17 +43,17 @@ type InfixParser interface {
 
 // ----------------------------------------------------------------------------
 
-// Default prefix parsers.
+// Default prefix parsers for the Bantam language.
 var PrefixParsers = map[TokenType]PrefixParser{
-	TokenName:        NameParser{},
-	TokenParenL:      GroupParser{},
+	TokenName:        NameParser(0),
+	TokenParenL:      GroupParser(0),
 	TokenPlus:        UnaryParser(6),
 	TokenMinus:       UnaryParser(6),
 	TokenTilde:       UnaryParser(6),
 	TokenExclamation: UnaryParser(6),
 }
 
-// Default infix parsers.
+// Default infix parsers for the Bantam language.
 var InfixParsers = map[TokenType]InfixParser{
 	TokenAssignment:  AssignParser(1),
 	TokenQuestion:    TernaryParser(2),
@@ -57,12 +68,14 @@ var InfixParsers = map[TokenType]InfixParser{
 
 // ----------------------------------------------------------------------------
 
+// Parser parses a token stack and builds and abstract syntax tree.
 type Parser struct {
 	*Stack
 	PrefixParsers map[TokenType]PrefixParser
 	InfixParsers  map[TokenType]InfixParser
 }
 
+// NewParser returns a new parser for the given token stack.
 func NewParser(stack *Stack) *Parser {
 	return &Parser{
 		Stack:         stack,
@@ -71,11 +84,14 @@ func NewParser(stack *Stack) *Parser {
 	}
 }
 
+// Parse consumes the token stack and returns a node that represents an
+// expression. If parsing fails it also returns an error.
 func (p *Parser) Parse() (n Node, err error) {
 	defer p.recover(&err)
 	return p.parseExpression(0), nil
 }
 
+// parseExpression is the core of the "Top Down Operator Precedence" algorithm.
 func (p *Parser) parseExpression(precedence int) Node {
 	token := p.Pop()
 	prefix, ok := PrefixParsers[token.Type]
@@ -94,6 +110,7 @@ func (p *Parser) parseExpression(precedence int) Node {
 	return left
 }
 
+// precedence returns the precedence level for the next token to be read.
 func (p *Parser) precedence() int {
 	if parser, ok := p.InfixParsers[p.Peek(0).Type]; ok {
 		return parser.Precedence()
@@ -119,7 +136,7 @@ func (p *Parser) recover(err *error) {
 // ----------------------------------------------------------------------------
 
 // NameParser is a simple parser for a named variable like "abc".
-type NameParser struct{}
+type NameParser int
 
 func (NameParser) Parse(parser *Parser, token Token) Node {
 	return NewNameNode(token.Text)
@@ -129,10 +146,10 @@ func (NameParser) Parse(parser *Parser, token Token) Node {
 
 // GroupParser parses parentheses used to group expressions,
 // like "a * (b + c)".
-type GroupParser struct{}
+type GroupParser int
 
-func (GroupParser) Parse(parser *Parser, token Token) Node {
-	n := parser.parseExpression(0)
+func (p GroupParser) Parse(parser *Parser, token Token) Node {
+	n := parser.parseExpression(int(p))
 	parser.Expect(TokenParenR)
 	return n
 }
