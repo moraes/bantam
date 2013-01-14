@@ -89,10 +89,15 @@ func TestParser(t *testing.T) {
 		l := &lexer{src: test.source}
 		s := &Stack{lexer: l}
 		p := &Parser{s, PrefixParsers, InfixParsers}
-		n := p.Parse(0)
+		n, e := p.Parse()
+		if e != nil {
+			t.Errorf("%q: error parsing: %v", test.source, e)
+			continue
+		}
 		r := n.String()
 		if r != test.result {
 			t.Errorf("%q: expected %q, got %q", test.source, test.result, r)
+			continue
 		}
 	}
 

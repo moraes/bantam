@@ -6,6 +6,7 @@ package bantam
 
 import (
 	"fmt"
+	"runtime"
 )
 
 // PrefixParser is of the two interfaces used by the Pratt parser.
@@ -70,20 +71,23 @@ func NewParser(stack *Stack) *Parser {
 	}
 }
 
-func (p *Parser) Parse(precedence int) Node {
+func (p *Parser) Parse() (n Node, err error) {
+	defer p.recover(&err)
+	return p.parseExpression(0), nil
+}
+
+func (p *Parser) parseExpression(precedence int) Node {
 	token := p.Pop()
 	prefix, ok := PrefixParsers[token.Type]
 	if !ok {
-		// TODO: use Parser.errorf()
-		panic(fmt.Sprintf("could not parse %s", token))
+		p.errorf("could not parse %s", token)
 	}
 	left := prefix.Parse(p, token)
 	for precedence < p.precedence() {
 		token = p.Pop()
 		infix, ok := p.InfixParsers[token.Type]
 		if !ok {
-			// TODO: use Parser.errorf()
-			panic(fmt.Sprintf("could not parse %s", token))
+			p.errorf("could not parse %s", token)
 		}
 		left = infix.Parse(p, left, token)
 	}
@@ -95,6 +99,21 @@ func (p *Parser) precedence() int {
 		return parser.Precedence()
 	}
 	return 0
+}
+
+// errorf stops parsing and makes the parser return an error.
+func (p *Parser) errorf(format string, args ...interface{}) {
+	panic(fmt.Sprintf(format, args...))
+}
+
+// recover turns panics into returns from the top level of Parse.
+func (p *Parser) recover(err *error) {
+	if e := recover(); e != nil {
+		if _, ok := e.(runtime.Error); ok {
+			panic(e)
+		}
+		*err = e.(error)
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -113,7 +132,7 @@ func (NameParser) Parse(parser *Parser, token Token) Node {
 type GroupParser struct{}
 
 func (GroupParser) Parse(parser *Parser, token Token) Node {
-	n := parser.Parse(0)
+	n := parser.parseExpression(0)
 	parser.Expect(TokenParenR)
 	return n
 }
@@ -124,7 +143,7 @@ func (GroupParser) Parse(parser *Parser, token Token) Node {
 type UnaryParser int
 
 func (p UnaryParser) Parse(parser *Parser, token Token) Node {
-	right := parser.Parse(int(p))
+	right := parser.parseExpression(int(p))
 	return NewUnaryNode(token.Type, right)
 }
 
@@ -151,10 +170,9 @@ type AssignParser int
 func (p AssignParser) Parse(parser *Parser, left Node, token Token) Node {
 	l, ok := left.(*NameNode)
 	if !ok {
-		// TODO: use Parser.errorf()
-		panic("the left-hand side of an assignment must be a name")
+		parser.errorf("the left-hand side of an assignment must be a name")
 	}
-	right := parser.Parse(int(p) - 1);
+	right := parser.parseExpression(int(p) - 1);
 	return NewAssignNode(l.Name, right)
 }
 
@@ -173,7 +191,7 @@ func (p FunctionParser) Parse(parser *Parser, left Node, token Token) Node {
 	args := NewListNode()
 	if !parser.Match(TokenParenR) {
 		for {
-			args.Append(parser.Parse(0))
+			args.Append(parser.parseExpression(0))
 			if !parser.Match(TokenComma) {
 				break
 			}
@@ -193,7 +211,7 @@ func (p FunctionParser) Precedence() int {
 type BinaryParser int
 
 func (p BinaryParser) Parse(parser *Parser, left Node, token Token) Node {
-	right := parser.Parse(int(p))
+	right := parser.parseExpression(int(p))
 	return NewBinaryNode(left, token.Type, right)
 }
 
@@ -211,7 +229,7 @@ func (p BinaryRightParser) Parse(parser *Parser, left Node, token Token) Node {
 	// lower precedence when parsing the right-hand side. This will let a
 	// parser with the same precedence appear on the right, which will then
 	// take *this* parser's result as its left-hand argument.
-	right := parser.Parse(int(p) - 1)
+	right := parser.parseExpression(int(p) - 1)
 	return NewBinaryNode(left, token.Type, right)
 }
 
@@ -225,9 +243,9 @@ func (p BinaryRightParser) Precedence() int {
 type TernaryParser int
 
 func (p TernaryParser) Parse(parser *Parser, left Node, token Token) Node {
-	node := parser.Parse(0)
+	node := parser.parseExpression(0)
 	parser.Expect(TokenColon)
-	elseNode := parser.Parse(int(p) - 1)
+	elseNode := parser.parseExpression(int(p) - 1)
 	return NewTernaryNode(left, listNode(node), listNode(elseNode))
 }
 
