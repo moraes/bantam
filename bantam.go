@@ -68,7 +68,7 @@ var InfixParsers = map[TokenType]InfixParser{
 
 // ----------------------------------------------------------------------------
 
-// Parser parses a token stack and builds and abstract syntax tree.
+// Parser parses a token stack and builds an abstract syntax tree.
 type Parser struct {
 	*Stack
 	PrefixParsers map[TokenType]PrefixParser
