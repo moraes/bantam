@@ -88,7 +88,12 @@ func NewParser(stack *Stack) *Parser {
 // expression. If parsing fails it also returns an error.
 func (p *Parser) Parse() (n Node, err error) {
 	defer p.recover(&err)
-	return p.parseExpression(0), nil
+	n = p.parseExpression(0)
+	// Our expression terminator is simply EOF.
+	if p.Peek(0).Type != TokenEOF {
+		p.errorf("expected EOF, got %s", p.Peek(0))
+	}
+	return
 }
 
 // parseExpression is the core of the "Top Down Operator Precedence" algorithm.
@@ -96,6 +101,7 @@ func (p *Parser) parseExpression(precedence int) Node {
 	token := p.Pop()
 	prefix, ok := PrefixParsers[token.Type]
 	if !ok {
+		p.Push(token)
 		p.errorf("could not parse %s", token)
 	}
 	left := prefix.Parse(p, token)
@@ -103,6 +109,7 @@ func (p *Parser) parseExpression(precedence int) Node {
 		token = p.Pop()
 		infix, ok := p.InfixParsers[token.Type]
 		if !ok {
+			p.Push(token)
 			p.errorf("could not parse %s", token)
 		}
 		left = infix.Parse(p, left, token)
@@ -120,7 +127,7 @@ func (p *Parser) precedence() int {
 
 // errorf stops parsing and makes the parser return an error.
 func (p *Parser) errorf(format string, args ...interface{}) {
-	panic(fmt.Sprintf(format, args...))
+	panic(fmt.Errorf(format, args...))
 }
 
 // recover turns panics into returns from the top level of Parse.
@@ -189,7 +196,7 @@ func (p AssignParser) Parse(parser *Parser, left Node, token Token) Node {
 	if !ok {
 		parser.errorf("the left-hand side of an assignment must be a name")
 	}
-	right := parser.parseExpression(int(p) - 1);
+	right := parser.parseExpression(int(p) - 1)
 	return NewAssignNode(l.Name, right)
 }
 

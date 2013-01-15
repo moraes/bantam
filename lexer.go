@@ -62,7 +62,7 @@ func (s *Stack) Peek(index int) Token {
 		s.Push(t...)
 		return t[0]
 	}
-	panic("Peek received negative index")
+	panic(fmt.Errorf("Peek received negative index"))
 }
 
 // Expect consumes a token if matches one of the expected types. Otherwise
@@ -82,7 +82,7 @@ func (s *Stack) Expect(expected ...TokenType) Token {
 		}
 	}
 	s.Push(t)
-	panic(fmt.Sprintf("expected token %s and found %s", expected, t.Type))
+	panic(fmt.Errorf("expected token %s and found %s", expected, t.Type))
 }
 
 // Match consumes a token if it is of the expected type, returning true.

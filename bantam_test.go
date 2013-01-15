@@ -102,14 +102,14 @@ func TestParser(t *testing.T) {
 	}
 
 	/*
-	l := &lexer{src: "-a * b"}
-	s := &Stack{lexer: l}
-	for {
-		token := s.Pop()
-		t.Errorf("%s", token)
-		if token.Type == TokenEOF {
-			break
+		l := &lexer{src: "-a * b"}
+		s := &Stack{lexer: l}
+		for {
+			token := s.Pop()
+			t.Errorf("%s", token)
+			if token.Type == TokenEOF {
+				break
+			}
 		}
-	}
 	*/
 }

@@ -63,7 +63,7 @@ func (n *FunctionNode) String() string {
 	b := new(bytes.Buffer)
 	for k, v := range n.Args.Nodes {
 		fmt.Fprint(b, v)
-		if k < len(n.Args.Nodes) - 1 {
+		if k < len(n.Args.Nodes)-1 {
 			b.WriteString(", ")
 		}
 	}
